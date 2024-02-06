@@ -67,7 +67,7 @@ def create_account(request):
                 otp_obj = get_object_or_404(Otp, phone=phone, verified=False)
                 print(f"Found Otp: {otp_obj}")
                 otp_obj.delete()
-                User.objects.create(email=email, phone=phone, fullname=fullname, password=make_password(password))
+                User.objects.create(email=email, phone=phone, fullname=fullname, password=password)
                 return JsonResponse({"message": "account created successfully"})
             else:
                 error_message = "Invalid data provided. "
@@ -93,27 +93,31 @@ def create_account(request):
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
-
-
-
     
 @api_view(['POST'])
-def login(request) : 
+def login(request):
     email = request.data.get('email')
     phone = request.data.get('phone')
     password = request.data.get('password')
 
-    if email : 
-        user = get_object_or_404(User,email = email)
-    elif phone : 
-        user = get_object_or_404(User,phone = phone)
-    else : 
-        return Response('data missing',400)
-    
-    if check_password(password,user.password) : 
-        return token_response(user)
-    else : 
-        return Response('incorrect password',400)
+    if email:
+        user = User.objects.filter(email=email).first()
+        password1 = user.password if user else None
+    elif phone:
+        user = User.objects.filter(phone=phone).first()
+        password1 = user.password if user else None
+    else:
+        return JsonResponse({'error': 'data missing'}, status=400)
+
+    if user :
+        if password == password1:
+            return token_response(user)
+        else :
+            return JsonResponse({'response':'mdpincorrecte'})
+    else:
+        print(check_password('123456', user.password) if user else None)
+        print(user.password if user else None)
+        return JsonResponse({'error': 'incorrect password'}, status=400)
 @api_view(['GET', 'POST'])
 def password_reset_email(request):
     if request.method == 'GET':

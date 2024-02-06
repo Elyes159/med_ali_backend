@@ -26,10 +26,15 @@ def send_otp(phone):
 def new_token() : 
     token = uuid.uuid1().hex
     return token
-def token_response(user) : 
+def token_response(user):
     token = new_token()
-    Token.objects.create(token=token,user=user)
-    return Response('token : '+token)
+    Token.objects.create(token=token, user=user) 
+    response_data = {
+        'message': 'login successful',
+        'token': token,
+    }
+
+    return JsonResponse(response_data)
 from django.core.mail import send_mail
 
 def send_password_reset_email(user):
