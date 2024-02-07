@@ -2,6 +2,8 @@ from django.utils import timezone  # Assurez-vous d'importer correctement le mod
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group as DjangoGroup
 from secure import PermissionsPolicy
+from django.contrib.auth.hashers import make_password
+
 
 
 class User( models.Model) : 
@@ -12,6 +14,11 @@ class User( models.Model) :
     created_at = models.DateTimeField(auto_now_add = True)
     def __str__(self) : 
         return self.email
+    def update_password(self, new_password):
+        # Hasher le nouveau mot de passe avant la mise à jour
+        hashed_password = make_password(new_password)
+        User.objects.filter(pk=self.pk).update(password=hashed_password)
+        
 class Otp(models.Model) : 
     phone = models.CharField(max_length = 10)
     otp = models.IntegerField()

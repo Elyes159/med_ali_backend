@@ -2,17 +2,21 @@ import datetime
 import json
 from random import randint
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404,redirect
 from rest_framework.response import Response
 
-from flutter_app.models import Otp, User
+from flutter_app.models import Otp, PasswordResetToken, Token, User
 from flutter_app.utils import send_otp, send_password_reset_email, token_response
+from rest_framework.parsers import FormParser
 
 from rest_framework.decorators import api_view
 from django.contrib.auth.hashers import make_password,check_password
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie,csrf_protect
 from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import get_template
+from django.template import loader
+from mytestwebsite.settings import TEMPLATES_BASE_URL
 
 @api_view(['POST'])
 def request_otp(request):
@@ -115,8 +119,6 @@ def login(request):
         else :
             return JsonResponse({'response':'mdpincorrecte'})
     else:
-        print(check_password('123456', user.password) if user else None)
-        print(user.password if user else None)
         return JsonResponse({'error': 'incorrect password'}, status=400)
 @api_view(['GET', 'POST'])
 def password_reset_email(request):
@@ -136,5 +138,61 @@ def password_reset_email(request):
     return JsonResponse({'error': 'Method Not Allowed'}, status=405)
 
 @api_view(['GET'])
-def password_reset_form(request) :
-    return HttpResponse('')
+def password_reset_form(request, email, token):
+    token_instance = PasswordResetToken.objects.filter(user__email=email, token=token).first()
+    link_expired = loader.get_template('pages/link-expired.html').render()
+
+    if token_instance:
+        if datetime.datetime.utcnow() < token_instance.validity.replace(tzinfo=None):
+            return render(request, 'pages/new-password-form.html', {
+                'email': email,
+                'token': token,
+                'base_url': TEMPLATES_BASE_URL,
+            })
+        else:
+            token_instance.delete()
+            return HttpResponse(link_expired)
+
+    else:
+        return HttpResponse(link_expired)
+        
+@api_view(['POST'])
+def password_reset_confirm(request, email, token):
+    email = request.data.get('email')
+    token = request.data.get('token')
+    password1 = request.data.get('password1')
+    password2 = request.data.get('password2')
+    print(password1)
+    token_instance = PasswordResetToken.objects.filter(user__email=email, token=token).first()
+    link_expired = get_template('pages/link-expired.html').render()
+    if token_instance:
+        if datetime.datetime.utcnow() < token_instance.validity.replace(tzinfo=None):
+            if len(password1) < 8:
+                return render(request, 'pages/new-password-form.html', {
+                    'email': email,
+                    'token': token,
+                    'base_url': TEMPLATES_BASE_URL,
+                    'error': 'Password length must be at least 8'
+                })
+
+            if password1 == password2:
+                user = token_instance.user
+                User.objects.filter(email=user.email).update(password=password1)
+                token_instance.delete()
+                Token.objects.filter(user=user).delete()
+                return redirect('password_updated')
+            else:
+                return render(request, 'pages/new-password-form.html', {
+                    'email': email,
+                    'token': token,
+                    'base_url': TEMPLATES_BASE_URL,
+                    'error': 'Password 1 must be equal to password 2'
+                })
+        else:
+            token_instance.delete()
+            return HttpResponse(link_expired)
+    else:
+        return HttpResponse(link_expired)
+@api_view(['GET'])
+def password_updated(request) : 
+    return render(request,'pages/password-updated.html')
