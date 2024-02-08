@@ -9,6 +9,8 @@ from django.utils.html import strip_tags
 from django.template import Context
 from flutter_app.models import Otp, PasswordResetToken, Token
 from mytestwebsite.settings import TEMPLATES_BASE_URL
+from rest_framework.permissions import BasePermission
+
 def send_otp(phone):
     otp = randint(100000, 999999)
     validity = datetime.datetime.now() + datetime.timedelta(minutes=10)
@@ -61,3 +63,9 @@ def send_password_reset_email(user):
     except Exception as e:
         print(f"Erreur lors de l'envoi de l'e-mail : {e}")
         return JsonResponse({'error': 'Failed to send reset password email'}, status=500)
+    
+class IsAuthenticatedUser(BasePermission) :
+    message = 'unauthenticated_user'
+
+    def has_permission(self,request,view) : 
+        return bool(request.user)

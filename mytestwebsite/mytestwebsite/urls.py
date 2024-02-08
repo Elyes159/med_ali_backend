@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, verify_otp,password_reset_email
+from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, userData, verify_otp,password_reset_email
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
@@ -27,4 +27,5 @@ urlpatterns = [
     path('login/',login,name='login'),
     path('password_reset_confirm/<email>/<token>',password_reset_confirm,name='password_reset_confirm'),
     path('password_updated/', password_updated, name='password_updated'),
+    path('userdata/',userData,)
 ]

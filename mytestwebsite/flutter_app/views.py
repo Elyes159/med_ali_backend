@@ -6,9 +6,8 @@ from django.shortcuts import get_object_or_404,redirect
 from rest_framework.response import Response
 
 from flutter_app.models import Otp, PasswordResetToken, Token, User
-from flutter_app.utils import send_otp, send_password_reset_email, token_response
+from flutter_app.utils import IsAuthenticatedUser, send_otp, send_password_reset_email, token_response
 from rest_framework.parsers import FormParser
-
 from rest_framework.decorators import api_view
 from django.contrib.auth.hashers import make_password,check_password
 from django.shortcuts import render
@@ -17,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import get_template
 from django.template import loader
 from mytestwebsite.settings import TEMPLATES_BASE_URL
+from rest_framework.decorators import permission_classes
 
 @api_view(['POST'])
 def request_otp(request):
@@ -196,3 +196,8 @@ def password_reset_confirm(request, email, token):
 @api_view(['GET'])
 def password_updated(request) : 
     return render(request,'pages/password-updated.html')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedUser])
+def userData(request) : 
+    return Response()
