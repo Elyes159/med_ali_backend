@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-i&ye77oj9vhd=&at=-k5waun!kxq9l_n2krdli0p#1^rf$65yg
 DEBUG = True
 
 ALLOWED_HOSTS = ['192.168.1.188', '127.0.0.1', 'localhost','10.0.2.15','10.0.2.16','192.168.1.33'
-                 ,'192.168.1.97','192.168.1.17']
+                 ,'192.168.1.97','192.168.1.17','10.0.2.2']
 
 # Application definition
 
@@ -46,7 +46,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware'
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -146,6 +146,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        
 
     ],
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
@@ -178,3 +179,4 @@ REST_FRAMEWORK = {
         
     }
 }
+

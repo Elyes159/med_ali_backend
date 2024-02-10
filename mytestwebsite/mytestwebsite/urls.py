@@ -15,11 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, userData, verify_otp,password_reset_email
+from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, resend_otp, userData, verify_otp,password_reset_email
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('request_otp/',request_otp, name = 'request_otp'),
+    path('resend_otp/',resend_otp,name='resend_otp'),
     path('verify_otp/', verify_otp),
     path('create_account/',create_account, name = 'create_account'),
     path('password_reset_email/',password_reset_email,name='password_reset_email'),

@@ -1,10 +1,11 @@
 import datetime
 import json
+import logging
 from random import randint
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404,redirect
 from rest_framework.response import Response
-
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from flutter_app.models import Otp, PasswordResetToken, Token, User
 from flutter_app.utils import IsAuthenticatedUser, send_otp, send_password_reset_email, token_response
 from rest_framework.parsers import FormParser
@@ -17,8 +18,13 @@ from django.template.loader import get_template
 from django.template import loader
 from mytestwebsite.settings import TEMPLATES_BASE_URL
 from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from django.http import Http404
+
 
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def request_otp(request):
     email = request.data.get('email')
     phone = request.data.get('phone')
@@ -33,22 +39,55 @@ def request_otp(request):
         return send_otp(phone)
     else:
         return JsonResponse({'error': 'Data missing'}, status=400)
-@api_view(['POST'])
-def verify_otp(request) : 
-    phone = request.data.get('phone')
-    otp = request.data.get('otp')
     
-    otp_obj = get_object_or_404(Otp,phone=phone,verified = False)
+@api_view(['POST'])
+def resend_otp(request) : 
+    phone = request.data.get('phone')
+    if not phone : 
+        return Response('data_missing',400)
+    return send_otp(phone)
 
-    if otp_obj.validity.replace(tzinfo=None) > datetime.datetime.utcnow() : 
-        if otp_obj.otp == otp : 
-            otp_obj.verified = True
-            otp_obj.save()
-            return Response('otp_verified succesfully')
-        else : 
-            return Response('Incorrect otp',400)
-    else : 
-        return Response('otp expired',400)
+from rest_framework.exceptions import AuthenticationFailed
+
+# Créer un objet logger
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+def verify_otp(request):
+    try:
+        phone = request.data.get('phone')
+        otp = request.data.get('otp')
+        
+        otp_obj = get_object_or_404(Otp, phone=phone, verified=False)
+
+        try:
+            validity_datetime = otp_obj.validity.replace(tzinfo=None)
+        except AttributeError:
+            logger.error('Invalid datetime format for validity', exc_info=True)
+            return Response('Invalid datetime format for validity', 500)
+
+        if validity_datetime > datetime.datetime.utcnow():
+            if otp_obj.otp == otp:
+                otp_obj.verified = True
+                otp_obj.save()
+                return Response('otp_verified successfully')
+            else:
+                return Response('Incorrect otp', 400)
+        else:
+            return Response('otp expired', 400)
+    except AuthenticationFailed as e:
+        # Logguer l'erreur
+        logger.error(f'Authentication failed: {e}', exc_info=True)
+        return Response('Authentication failed', 401)
+    except Http404:
+        # Logguer l'erreur
+        logger.error('Otp not found', exc_info=True)
+        return Response('Otp not found', 404)
+    except Exception as e:
+        # Logguer l'erreur
+        logger.error(f'Error in verify_otp: {e}', exc_info=True)
+        print(f'ouni 3asba {e}')
+        return Response('Internal Server Error', 500)
     
 
 
@@ -56,7 +95,6 @@ def verify_otp(request) :
 def create_account(request):
     if request.method == 'POST':
         try:
-            # Charger les données JSON directement depuis le corps de la requête
             data = json.loads(request.body.decode('utf-8'))
 
             email = data.get('email')
@@ -70,8 +108,8 @@ def create_account(request):
                 print(f"Trying to find Otp for phone: {phone}")
                 otp_obj = get_object_or_404(Otp, phone=phone, verified=False)
                 print(f"Found Otp: {otp_obj}")
-                otp_obj.delete()
                 User.objects.create(email=email, phone=phone, fullname=fullname, password=password)
+                otp_obj.delete()
                 return JsonResponse({"message": "account created successfully"})
             else:
                 error_message = "Invalid data provided. "
