@@ -21,6 +21,11 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from django.http import Http404
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.exceptions import AuthenticationFailed
+
+
 
 
 @api_view(['POST'])
@@ -41,57 +46,73 @@ def request_otp(request):
         return JsonResponse({'error': 'Data missing'}, status=400)
     
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def resend_otp(request) : 
     phone = request.data.get('phone')
     if not phone : 
         return Response('data_missing',400)
     return send_otp(phone)
 
-from rest_framework.exceptions import AuthenticationFailed
 
 # Créer un objet logger
 logger = logging.getLogger(__name__)
-
+#tabda
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def verify_otp(request):
     try:
         phone = request.data.get('phone')
         otp = request.data.get('otp')
-        
+
+        print(f"Received OTP: {otp}")
+        print(f"Received phone: {phone}")
+
+        if not phone or not otp:
+            return JsonResponse({'error': 'Phone or OTP missing in the request'}, status=400)
+
         otp_obj = get_object_or_404(Otp, phone=phone, verified=False)
 
-        try:
-            validity_datetime = otp_obj.validity.replace(tzinfo=None)
-        except AttributeError:
-            logger.error('Invalid datetime format for validity', exc_info=True)
-            return Response('Invalid datetime format for validity', 500)
+        
+            # Si la validité n'est pas définie, créez une validité de 10 minutes à partir du temps actuel
+        validity_duration = timedelta(minutes=10)
+        otp_obj.validity = timezone.now() + validity_duration
+        otp_obj.save()
 
-        if validity_datetime > datetime.datetime.utcnow():
-            if otp_obj.otp == otp:
+        # Utilisez make_aware pour ajouter le fuseau horaire par défaut
+        validity_datetime = timezone.make_aware(datetime.datetime.combine(otp_obj.validity, datetime.datetime.now().time()))
+
+        print(f"Validity datetime: {validity_datetime}")
+        print(f"Current datetime: {timezone.now()}")
+
+        
+        if otp_obj.otp == int(otp):
+            try:
                 otp_obj.verified = True
                 otp_obj.save()
-                return Response('otp_verified successfully')
-            else:
-                return Response('Incorrect otp', 400)
+                return JsonResponse({'message': 'otp_verified successfully'})
+            except Exception as e:
+                print(f"An error occurred during OTP verification: {e}")
+                return JsonResponse({'error': 'Error during OTP verification'}, status=500)
         else:
-            return Response('otp expired', 400)
+            print("Incorrect otp")
+            return JsonResponse({'error': 'Incorrect otp'}, status=400)
+
+        
     except AuthenticationFailed as e:
-        # Logguer l'erreur
         logger.error(f'Authentication failed: {e}', exc_info=True)
-        return Response('Authentication failed', 401)
+        return JsonResponse({'error': 'Authentication failed'}, status=401)
     except Http404:
-        # Logguer l'erreur
         logger.error('Otp not found', exc_info=True)
-        return Response('Otp not found', 404)
+        return JsonResponse({'error': 'Otp not found'}, status=404)
     except Exception as e:
-        # Logguer l'erreur
         logger.error(f'Error in verify_otp: {e}', exc_info=True)
         print(f'ouni 3asba {e}')
-        return Response('Internal Server Error', 500)
-    
+        return JsonResponse({'error': 'Internal Server Error'}, status=500)
 
 
 @csrf_exempt
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def create_account(request):
     if request.method == 'POST':
         try:
@@ -106,7 +127,7 @@ def create_account(request):
 
             if email and phone and password and fullname:
                 print(f"Trying to find Otp for phone: {phone}")
-                otp_obj = get_object_or_404(Otp, phone=phone, verified=False)
+                otp_obj = get_object_or_404(Otp, phone=phone, verified=True)
                 print(f"Found Otp: {otp_obj}")
                 User.objects.create(email=email, phone=phone, fullname=fullname, password=password)
                 otp_obj.delete()
@@ -135,8 +156,9 @@ def create_account(request):
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
-    
+@csrf_exempt 
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def login(request):
     email = request.data.get('email')
     phone = request.data.get('phone')
@@ -159,6 +181,7 @@ def login(request):
     else:
         return JsonResponse({'error': 'incorrect password'}, status=400)
 @api_view(['GET', 'POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def password_reset_email(request):
     if request.method == 'GET':
         # Logique pour gérer la méthode GET (afficher un formulaire, par exemple)
@@ -195,6 +218,7 @@ def password_reset_form(request, email, token):
         return HttpResponse(link_expired)
         
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def password_reset_confirm(request, email, token):
     email = request.data.get('email')
     token = request.data.get('token')
@@ -237,5 +261,6 @@ def password_updated(request) :
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticatedUser])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def userData(request) : 
     return Response()
