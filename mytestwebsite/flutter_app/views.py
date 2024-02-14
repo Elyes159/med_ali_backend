@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404,redirect
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-from flutter_app.models import Otp, PasswordResetToken, Token, User
+from flutter_app.models import Category, Otp, PasswordResetToken, SLide, Token, User
 from flutter_app.utils import IsAuthenticatedUser, send_otp, send_password_reset_email, token_response
 from rest_framework.parsers import FormParser
 from rest_framework.decorators import api_view
@@ -16,14 +16,17 @@ from django.views.decorators.csrf import ensure_csrf_cookie,csrf_protect
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import get_template
 from django.template import loader
+from flutter_app.serializers import CategorySerializer, SLideSerializer, UserSerializer
 from mytestwebsite.settings import TEMPLATES_BASE_URL
 from rest_framework.decorators import permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated ,DjangoModelPermissions,AllowAny
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from django.http import Http404
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth.decorators import login_required, permission_required
+
 
 
 
@@ -166,6 +169,7 @@ def login(request):
 
     if email:
         user = User.objects.filter(email=email).first()
+        
         password1 = user.password if user else None
     elif phone:
         user = User.objects.filter(phone=phone).first()
@@ -199,6 +203,7 @@ def password_reset_email(request):
     return JsonResponse({'error': 'Method Not Allowed'}, status=405)
 
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def password_reset_form(request, email, token):
     token_instance = PasswordResetToken.objects.filter(user__email=email, token=token).first()
     link_expired = loader.get_template('pages/link-expired.html').render()
@@ -238,11 +243,12 @@ def password_reset_confirm(request, email, token):
                 })
 
             if password1 == password2:
+                link_success = get_template('pages/password-updated.html').render()
                 user = token_instance.user
                 User.objects.filter(email=user.email).update(password=password1)
                 token_instance.delete()
                 Token.objects.filter(user=user).delete()
-                return redirect('password_updated')
+                return HttpResponse(link_success)
             else:
                 return render(request, 'pages/new-password-form.html', {
                     'email': email,
@@ -256,11 +262,41 @@ def password_reset_confirm(request, email, token):
     else:
         return HttpResponse(link_expired)
 @api_view(['GET'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
 def password_updated(request) : 
     return render(request,'pages/password-updated.html')
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated])
+@login_required
+def userData(request):
+    print("Vue userData atteinte")
+    if request.user.is_authenticated:
+        user = request.user
+        print("3asba : ",user)
+        # Vous pouvez adapter cette logique en fonction de votre modèle User
+        data = {
+            'email': user.email,
+            'fullname': user.fullname,
+            'phone': user.phone,
+            # Ajoutez d'autres champs si nécessaire
+        }
+
+        return JsonResponse(data)
+    else:
+        return JsonResponse({'detail': 'User not authenticated'}, status=401)
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication, BasicAuthentication]) 
+def categories(request) : 
+    list = Category.objects.all().order_by('position')
+    data = CategorySerializer(list,many=True).data
+    return Response(data)
+
+
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticatedUser])
-@authentication_classes([SessionAuthentication, BasicAuthentication])
-def userData(request) : 
-    return Response()
+@authentication_classes([SessionAuthentication, BasicAuthentication]) 
+def slides(request) : 
+    list = SLide.objects.all().order_by('position')
+    data = SLideSerializer(list,many=True).data
+    return Response(data)

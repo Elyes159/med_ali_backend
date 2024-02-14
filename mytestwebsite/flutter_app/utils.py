@@ -10,6 +10,8 @@ from django.template import Context
 from flutter_app.models import Otp, PasswordResetToken, Token
 from mytestwebsite.settings import TEMPLATES_BASE_URL
 from rest_framework.permissions import BasePermission
+from django.utils import timezone
+
 
 def send_otp(phone):
     otp = randint(100000, 999999)
@@ -34,14 +36,19 @@ def token_response(user):
     response_data = {
         'message': 'login successful',
         'token': token,
+        'email' : user.email,
+        'fullname' : user.fullname,
+        'phone' : user.phone
+
     }
+    print(token)
 
     return JsonResponse(response_data)
 from django.core.mail import send_mail
 
 def send_password_reset_email(user):
     token = new_token()
-    exp_time = datetime.datetime.now() + datetime.timedelta(minutes=10)
+    exp_time = timezone.now() + timezone.timedelta(minutes=10)
 
     PasswordResetToken.objects.update_or_create(user=user, defaults={'user': user, 'token': token, 'validity': exp_time})
 

@@ -15,7 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, resend_otp, userData, verify_otp,password_reset_email
+from flutter_app.views import  create_account, login, password_reset_confirm, password_reset_form, password_updated, request_otp, resend_otp, slides, userData, verify_otp,password_reset_email , categories
+from mytestwebsite import settings
+from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
@@ -28,5 +30,12 @@ urlpatterns = [
     path('login/',login,name='login'),
     path('password_reset_confirm/<email>/<token>',password_reset_confirm,name='password_reset_confirm'),
     path('password_updated/', password_updated, name='password_updated'),
-    path('userdata/',userData,)
+    path('userdata/',userData,name='userdata'),
+    path('categories/',categories,name='categories'),
+    path('slides/',slides,name='slides'),
+
+
 ]
+
+if settings.DEBUG:
+    urlpatterns+= static(settings.MEDIA_URL,document_root=settings.MEDIA_ROOT)
